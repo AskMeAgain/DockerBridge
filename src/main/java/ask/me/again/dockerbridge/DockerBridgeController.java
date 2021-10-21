@@ -24,9 +24,9 @@ import java.util.List;
 
 @RequestMapping("/container")
 @RestController
-public class DockerBridge {
+public class DockerBridgeController {
 
-  @GetMapping("/{containerId}/exec")
+  @PostMapping("/{containerId}/exec")
   public String exec(@PathVariable("containerId") String containerId, @RequestBody String command) throws InterruptedException {
 
     var dockerClient = getInstance();
@@ -53,45 +53,26 @@ public class DockerBridge {
         .exec();
   }
 
-  @GetMapping("/{containerId}/stop")
-  public String stop(@PathVariable("containerId") String containerId) {
+  @PostMapping("/{containerId}/command")
+  public String command(@PathVariable("containerId") String containerId, @RequestBody String command) {
     var instance = getInstance();
 
-    instance.stopContainerCmd(containerId)
-        .exec();
+    switch (command) {
+      case "stop" -> instance.stopContainerCmd(containerId)
+          .exec();
+      case "start" -> instance.startContainerCmd(containerId)
+          .exec();
+      case "remove" -> {
+        instance.removeContainerCmd(containerId)
+            .withForce(true)
+            .exec();
+        return "";
+      }
+      case "restart" -> instance.restartContainerCmd(containerId)
+          .exec();
+    }
 
     return getContainerState(containerId, instance);
-  }
-
-  @GetMapping("/{containerId}/start")
-  public String start(@PathVariable("containerId") String containerId) {
-    var instance = getInstance();
-
-    instance.startContainerCmd(containerId)
-        .exec();
-
-    return getContainerState(containerId, instance);
-  }
-
-  @GetMapping("/{containerId}/restart")
-  public String restart(@PathVariable("containerId") String containerId) {
-    var instance = getInstance();
-
-    instance.restartContainerCmd(containerId)
-        .exec();
-
-    return getContainerState(containerId, instance);
-  }
-
-  @GetMapping("/{containerId}/remove")
-  public String remove(@PathVariable("containerId") String containerId) {
-    var instance = getInstance();
-
-    instance.removeContainerCmd(containerId)
-        .withForce(true)
-        .exec();
-
-    return "";
   }
 
   private String getContainerState(String containerId, DockerClient instance) {

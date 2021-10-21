@@ -1,0 +1,245 @@
+{
+	"info": {
+		"_postman_id": "aa248d85-ceed-40e5-ad00-8426e76cb2cf",
+		"name": "DockerBridge",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Container",
+			"item": [
+				{
+					"name": "List",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/container/list",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Exec - Mysql",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var template = `",
+									"<table bgcolor=\"#FFFFFF\">",
+									"    <tr>",
+									"    {{#each header}}",
+									"        <th>{{this}}</th>",
+									"    {{/each}}",
+									"    </tr>",
+									"    {{#each data}}",
+									"    <tr>",
+									"    {{#each this}}",
+									"        <td>{{this}}</td>",
+									"    {{/each}}",
+									"    </tr>",
+									"    {{/each}}",
+									"</table>",
+									"`;",
+									"",
+									"var responseByLine = pm.response.text().split(/\\r?\\n/);",
+									"",
+									"var arr = new Array();",
+									"",
+									"for(var i = 1; i < responseByLine.length -1; i++){",
+									"    arr.push(responseByLine[i].split(\"\\t\"));",
+									"}",
+									"",
+									"pm.visualizer.set(template, {",
+									"    header: responseByLine[0].split(\"\\t\"),",
+									"    data: arr",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "mysql -uroot -ppassword -e \"SELECT * FROM MyGuests\" db"
+						},
+						"url": {
+							"raw": "http://localhost:8080/container/:containerId/exec",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								":containerId",
+								"exec"
+							],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "7ff1422d347e"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Stop",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/container/:containerId/stop",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								":containerId",
+								"stop"
+							],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "9578c0aec5aa"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Start",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/container/:containerId/start",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								":containerId",
+								"start"
+							],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "9578c0aec5aa"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Portainer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var template = `",
+									"<link rel=\"stylesheet\" href=\"https://pro.fontawesome.com/releases/v5.10.0/css/all.css\" integrity=\"sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p\" crossorigin=\"anonymous\"/>",
+									"<style>",
+									"    i {color: black }",
+									"    i:hover { color:grey; cursor: pointer; }",
+									"    i:active { color:black }",
+									"</style>",
+									"<script>",
+									"    function docker(containerId, command)",
+									"    {   ",
+									"        var theUrl = 'http://localhost:8080/container/' + containerId + '/command';",
+									"        var xmlHttp = new XMLHttpRequest();",
+									"        xmlHttp.open( \"POST\", theUrl, false );",
+									"        xmlHttp.send(encodeURIComponent(command));",
+									"        var element = document.getElementById(containerId)",
+									"        element.textContent = xmlHttp.responseText;",
+									"    }",
+									"</script>",
+									"<table bgcolor=\"#FFFFFF\">",
+									"<tr>",
+									"    <th>Commands</th>",
+									"    <th>Image</th>",
+									"    <th>Id</th>",
+									"    <th>Status</th>",
+									"</tr>",
+									"    {{#each containers}}",
+									"    <tr>",
+									"        <td style=\"text-align:center\">",
+									"            <a onclick=\"docker('{{this.Id}}', 'start')\"><i class=\"fas fa-play\"></i></a>",
+									"            <a onclick=\"docker('{{this.Id}}', 'stop')\"><i class=\"fas fa-stop-circle\"></i></a>",
+									"            <a onclick=\"docker('{{this.Id}}', 'remove')\"><i class=\"fas fa-trash\"></i></a>",
+									"                <a onclick=\"docker('{{this.Id}}', 'restart')\"><i class=\"fas fa-sync-alt\"></i></a>",
+									"        </td>",
+									"        <td>{{this.Image}}</td>",
+									"        <td>",
+									"            <span style=\"display:inline-block;",
+									"                white-space: nowrap;",
+									"                overflow: hidden;",
+									"                text-overflow: clip;",
+									"                max-width: 8ch;\">",
+									"                {{this.Id}}",
+									"            </span>",
+									"        </td>    ",
+									"        <td>",
+									"            <span id='{{this.Id}}'>{{this.State}}</span>",
+									"        </td>",
+									"    </tr>",
+									"    {{/each}}",
+									"</table>",
+									"`;",
+									"",
+									"var header = pm.response.json()[0];",
+									"var data = pm.response.json().slice(1);",
+									"",
+									"pm.visualizer.set(template, {",
+									"    containers: pm.response.json()",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/container/list",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								"list"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
