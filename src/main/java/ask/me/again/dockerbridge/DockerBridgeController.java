@@ -14,20 +14,20 @@ import org.apache.commons.lang.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.websocket.server.PathParam;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 @RequestMapping("/container")
 @RestController
 public class DockerBridgeController {
 
-  @PostMapping("/{containerId}/exec")
-  public String exec(@PathVariable("containerId") String containerId, @RequestBody String command) throws InterruptedException {
+  @PostMapping("/{containerId}/bash")
+  public String bash(@PathVariable("containerId") String containerId, @RequestBody String command) throws InterruptedException {
 
     var dockerClient = getInstance();
 
@@ -37,12 +37,65 @@ public class DockerBridgeController {
         .exec();
 
     var outputStream = new ByteArrayOutputStream();
+    var outputStream2 = new ByteArrayOutputStream();
 
     dockerClient.execStartCmd(execCreateCmdResponse.getId())
-        .exec(new ExecStartResultCallback(outputStream, outputStream))
+        .exec(new ExecStartResultCallback(outputStream, outputStream2))
         .awaitCompletion();
 
-    return outputStream.toString();
+    return outputStream2.toString() + outputStream.toString();
+  }
+
+  @PostMapping("/{containerId}/exec")
+  public String exec(@PathVariable("containerId") String containerId, @RequestBody DockerCommand command) throws InterruptedException, IOException {
+    var dockerClient = getInstance();
+
+    var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
+        .withCmd(command.startCommand.toArray(String[]::new))
+        .withAttachStdout(true)
+        .withAttachStderr(true)
+        .withTty(true)
+        .withAttachStdin(true)
+        .exec();
+
+    try (var outputStream = new ByteArrayOutputStream()) {
+      var in = new PipedInputStream();
+      var out = new PipedOutputStream(in);
+
+      spawnInputThread(command, outputStream, in, out);
+
+      dockerClient.execStartCmd(execCreateCmdResponse.getId())
+          .withStdIn(in)
+          .withTty(true)
+          .exec(new ExecStartResultCallback(outputStream, outputStream))
+          .awaitCompletion(10, TimeUnit.SECONDS);
+
+      return outputStream.toString();
+    }
+
+  }
+
+  private void spawnInputThread(DockerCommand command, ByteArrayOutputStream outputStream, PipedInputStream in, PipedOutputStream out) {
+    new Thread(() -> {
+      try {
+        for (String x : command.inputCommands) {
+          if (x.equals("__")) {
+            Thread.sleep(1000);
+          } else {
+            out.write((x + "\n").getBytes(StandardCharsets.UTF_8));
+          }
+        }
+      } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+      } finally {
+        try {
+          in.close();
+          out.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }).start();
   }
 
   @GetMapping("/list")

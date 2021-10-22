@@ -10,3 +10,10 @@ services:
       MYSQL_DATABASE: 'db'
     ports:
       - "3306:3306"
+  sftp:
+    image: atmoz/sftp
+    volumes:
+      - /gradle/:/home/foo/upload
+    ports:
+      - "2222:22"
+    command: foo:pass:1001
