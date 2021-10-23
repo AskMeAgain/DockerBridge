@@ -51,7 +51,7 @@ public class DockerBridgeUtils {
     return DockerClientImpl.getInstance(config, httpClient);
   }
 
-  static void createTty(String containerId, String startCommand, OutputStream outputStream, PipedInputStream stdin) throws InterruptedException {
+  static void createTty(String containerId, String startCommand, PipedOutputStream logWritable, PipedInputStream stdin) throws InterruptedException {
     var dockerClient = DockerBridgeUtils.getInstance();
     var tty = true;
     var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
@@ -71,7 +71,8 @@ public class DockerBridgeUtils {
           {
             try {
               System.out.println(frame.toString());
-              outputStream.write(frame.getPayload());
+              logWritable.write(frame.getPayload());
+              logWritable.flush();
             } catch (IOException e) {
               e.printStackTrace();
             }
@@ -80,7 +81,7 @@ public class DockerBridgeUtils {
           @Override
           public void onComplete(){
             try {
-              outputStream.close();
+              logWritable.close();
             } catch (IOException e) {
               e.printStackTrace();
             }

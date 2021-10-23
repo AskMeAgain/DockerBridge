@@ -2,17 +2,19 @@ package ask.me.again.dockerbridge;
 
 import com.github.dockerjava.api.model.Container;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 
@@ -23,11 +25,12 @@ public class DockerBridgeController {
 
   private final HashMap<String, OutputStreamContainer> streams = new HashMap<>();
 
-  @PostMapping("/{containerId}/session")
-  public ResponseEntity<InputStreamResource> openSession(
-      @PathVariable("containerId") String containerId,
-      @RequestBody String startCommand
+  @GetMapping("/{containerId}/session")
+  public ResponseEntity<InputStreamResource>  openSession(
+      @PathVariable("containerId") String containerId
+      //@RequestBody String startCommand
   ) throws IOException, InterruptedException {
+    var startCommand = "bash";
     System.out.println("Opened session");
     if (streams.containsKey(containerId)) {
       streams.get(containerId).responseStream().close();
@@ -45,7 +48,10 @@ public class DockerBridgeController {
     DockerBridgeUtils.createTty(containerId, startCommand, logWritable, inUser);
 
     System.out.println("returned!");
-    return new ResponseEntity<>(new InputStreamResource(inLog), HttpStatus.OK);
+
+    return ResponseEntity.ok()
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(new InputStreamResource(inLog));
 
   }
 
