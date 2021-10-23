@@ -1,6 +1,8 @@
 package ask.me.again.dockerbridge;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.core.command.ExecStartResultCallback;
@@ -49,27 +51,42 @@ public class DockerBridgeUtils {
     return DockerClientImpl.getInstance(config, httpClient);
   }
 
-  static void createTty(String containerId, List<String> commands, OutputStream outputStream) throws IOException, InterruptedException {
+  static void createTty(String containerId, String startCommand, OutputStream outputStream, PipedInputStream stdin) throws InterruptedException {
     var dockerClient = DockerBridgeUtils.getInstance();
-
+    var tty = true;
     var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
-        .withCmd(commands.get(0).split(" "))
+        .withCmd(startCommand.split(" "))
         .withAttachStdout(true)
         .withAttachStderr(true)
-        .withTty(true)
+        .withTty(tty)
         .withAttachStdin(true)
         .exec();
 
-    var in = new PipedInputStream();
-    var out = new PipedOutputStream(in);
-
-    DockerBridgeUtils.spawnInputThread(commands, in, out);
-
     dockerClient.execStartCmd(execCreateCmdResponse.getId())
-        .withStdIn(in)
-        .withTty(true)
-        .exec(new ExecStartResultCallback(outputStream, outputStream))
-        .awaitCompletion(10, TimeUnit.SECONDS);
+        .withStdIn(stdin)
+        .withTty(tty)
+        .exec(new ResultCallback.Adapter<>() {
+          @Override
+          public void onNext(Frame frame)
+          {
+            try {
+              System.out.println(frame.toString());
+              outputStream.write(frame.getPayload());
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          }
+
+          @Override
+          public void onComplete(){
+            try {
+              outputStream.close();
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          }
+        })
+        .awaitStarted();
   }
 
 }
