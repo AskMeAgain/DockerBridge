@@ -159,6 +159,15 @@ portainer version inside Postman:
 
 </details>
 
+## Stream logs
+
+Normally Postman cannot handle Streams, but since we have a javascript environment
+we can handle this clientside. We can use this to stream docker logs
+
+## Complete shell
+
+If we can exec via rest, then it should be an issue to 
+
 ## Installation
 
 1. add the [docker-java](https://github.com/docker-java/docker-java) 

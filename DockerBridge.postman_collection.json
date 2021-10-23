@@ -9,27 +9,7 @@
 			"name": "Container",
 			"item": [
 				{
-					"name": "List",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:8080/container/list",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8080",
-							"path": [
-								"container",
-								"list"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Exec - Mysql",
+					"name": "Mysql",
 					"event": [
 						{
 							"listen": "test",
@@ -74,10 +54,15 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "mysql -uroot -ppassword -e \"SELECT * FROM MyGuests\" db"
+							"raw": "[\n    \"mysql -uroot -ppassword --silent\",\n    \"_______________\",\n    \"use db;\",\n    \"_______________\",\n    \"SELECT * FROM MyGuests;\",\n    \"__\",\n    \"exit\",\n    \"__\",\n    \"exit\"\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/container/:containerId/exec",
+							"raw": "http://localhost:8080/container/:containerId/tty",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -86,66 +71,12 @@
 							"path": [
 								"container",
 								":containerId",
-								"exec"
+								"tty"
 							],
 							"variable": [
 								{
 									"key": "containerId",
-									"value": "7ff1422d347e"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Stop",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:8080/container/:containerId/stop",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8080",
-							"path": [
-								"container",
-								":containerId",
-								"stop"
-							],
-							"variable": [
-								{
-									"key": "containerId",
-									"value": "9578c0aec5aa"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Start",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:8080/container/:containerId/start",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8080",
-							"path": [
-								"container",
-								":containerId",
-								"start"
-							],
-							"variable": [
-								{
-									"key": "containerId",
-									"value": "9578c0aec5aa"
+									"value": "f5133fb5199f"
 								}
 							]
 						}
@@ -238,6 +169,335 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Sftp",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.variables.set(\"path\", pm.request.url.query.all()[0].value);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var body = responseBody;",
+									"",
+									"var arr = body.split(\"\\n\");",
+									"",
+									"var i = 0;",
+									"for(; i < arr.length; i++){",
+									"",
+									"    if(arr[i].includes('ls -la')){",
+									"        i++;",
+									"        break;",
+									"    }",
+									"}",
+									"",
+									"var result = new Array();",
+									"for(; i < arr.length; i++){",
+									"    if(!arr[i].includes(\"sftp> exit\") && arr[i] !== \"\"){",
+									"        var obj = new Object();",
+									"        var splitted = arr[i].split(\"    \");",
+									"        obj.permissions = splitted[0];",
+									"",
+									"        var subDirUser = splitted[1].split(\" \");",
+									"        obj.user = subDirUser[1];",
+									"        obj.group = splitted[2];",
+									"        obj.date = splitted[3];",
+									"",
+									"        var sizeDateName = splitted[4].split(\" \");",
+									"        obj.fileSize = sizeDateName[1];",
+									"        obj.fileName = sizeDateName[5];",
+									"        obj.date = sizeDateName[2] + \" \" + sizeDateName[3] + \" \"+ sizeDateName[4] ",
+									"        result.push(obj);",
+									"    }",
+									"}",
+									"",
+									"var template = `",
+									"<table bgcolor=\"#FFFFFF\">",
+									"<tr>",
+									"    <th>Permissions</th>",
+									"    <th>FileName</th>",
+									"    <th>User</th>",
+									"    <th>Group</th>",
+									"    <th>FileSize</th>",
+									"    <th>Date</th>",
+									"</tr>",
+									"    {{#each files}}",
+									"    <tr>",
+									"        <td>",
+									"           {{this.permissions}}",
+									"        </td>",
+									"        <td>",
+									"           {{this.fileName}}",
+									"        </td>",
+									"        <td>",
+									"           {{this.user}}",
+									"        </td>",
+									"          <td>",
+									"           {{this.group}}",
+									"        </td>",
+									"        <td>",
+									"           {{this.fileSize}}",
+									"        </td>",
+									"        <td>",
+									"           {{this.date}}",
+									"        </td>",
+									"    </tr>",
+									"    {{/each}}",
+									"</table>",
+									"`;",
+									"",
+									"pm.visualizer.set(template, {",
+									"    files: result",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n    \"sftp -P 22 foo@sftp\",\n    \"_________\",\n    \"pass\",\n    \"_________\",\n    \"ls -la {{path}}\",\n    \"__\",\n    \"exit\",\n    \"__\",\n    \"exit\"\n]",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8080/container/:containerId/tty?path=upload/",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								":containerId",
+								"tty"
+							],
+							"query": [
+								{
+									"key": "path",
+									"value": "upload/"
+								}
+							],
+							"variable": [
+								{
+									"key": "containerId",
+									"value": "{{containerId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Shell",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var template = `",
+									"<style>",
+									"    #content {",
+									"        width: 100%;",
+									"        display: flex;",
+									"        flex-direction: column-reverse;",
+									"        overflow-y: scroll;",
+									"        padding-left: 10px; ",
+									"    }",
+									"    #inputfield {",
+									"        width: 100%;",
+									"        height: 40px;",
+									"        margin-bottom: 0px;",
+									"    }",
+									"</style>",
+									"",
+									"<div style=\"display:flex;flex-direction:column; height:100%;\">",
+									"    <div style=\"display:flex; flex-grow: 1; overflow: hidden; \">",
+									"        <label id=\"content\"></label>",
+									"    </div>",
+									"    <div style=\"display:flex;\">",
+									"        <input type=\"text\" id=\"inputfield\">",
+									"    </div>",
+									"</div>",
+									"",
+									"<script>",
+									"const node = document.getElementById(\"inputfield\");",
+									"node.addEventListener(\"keyup\", ({key}) => {",
+									"    if (key === \"Enter\") {",
+									"        var xhr = new XMLHttpRequest();",
+									"        xhr.open('POST', 'http://localhost:8080/container/f5133fb5199f/tty',false);",
+									"        xhr.setRequestHeader('Content-type', 'application/json');",
+									"",
+									"        var toBeSend = '[\"' + node.value.replaceAll('\"','\\\\\\\\\"') + '\"]';",
+									"        console.error(toBeSend);",
+									"        xhr.send(toBeSend);",
+									"",
+									"        var result = xhr.response.replaceAll(\"\\\\n\", \"<br />\");",
+									"",
+									"        if(!result.includes(\"<br />\")){",
+									"            result += \"<br />\";",
+									"        }",
+									"",
+									"        document.getElementById(\"content\").innerHTML += result;",
+									"",
+									"        node.value = '';",
+									"    }",
+									"})",
+									"",
+									"</script>",
+									"`;",
+									"",
+									"",
+									"pm.visualizer.set(template, {",
+									"",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {}
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/container/list",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var template = `",
+									"<style>",
+									"    #content {",
+									"        display: flex;",
+									"        flex-direction: column-reverse;",
+									"        overflow-y: scroll;",
+									"        padding-left: 10px; ",
+									"    }",
+									"</style>",
+									"",
+									"<div style=\"display:flex;flex-direction:column; height:100%;\">",
+									"    <label id=\"content\"></label>",
+									"</div>",
+									"",
+									"<script>",
+									"",
+									"var xhr = new XMLHttpRequest();",
+									"xhr.open('GET', '{{url}}', true);",
+									"xhr.seenBytes = 0;",
+									"",
+									"xhr.onreadystatechange = function() {",
+									"",
+									"    var newData = xhr.response.substr(xhr.seenBytes);",
+									"    var label = document.getElementById(\"content\");",
+									"",
+									"    label.innerHTML += newData.replaceAll(\"\\\\n\", \"<br />\");",
+									"    xhr.seenBytes = xhr.responseText.length;",
+									"};",
+									"",
+									"xhr.send();",
+									"</script>",
+									"`;",
+									"",
+									"console.log(pm.variables.replaceIn(pm.request.url.toString()))",
+									"",
+									"",
+									"pm.visualizer.set(template, {",
+									"    url: pm.request.url.toString()",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {}
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/container/{{containerId}}/log-stream",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"container",
+								"{{containerId}}",
+								"log-stream"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							"pm.variables.set(\"containerId\",\"cd17f6b5876d\");"
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
 				}
 			]
 		}

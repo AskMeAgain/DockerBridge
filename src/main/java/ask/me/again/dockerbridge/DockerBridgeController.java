@@ -1,106 +1,43 @@
 package ask.me.again.dockerbridge;
 
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.async.ResultCallback;
-import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Container;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientImpl;
-import com.github.dockerjava.core.InvocationBuilder;
 import com.github.dockerjava.core.command.ExecStartResultCallback;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import javax.websocket.server.PathParam;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 
-@RequestMapping("/container")
 @RestController
+@RequestMapping("/container")
 public class DockerBridgeController {
 
-  @PostMapping("/{containerId}/bash")
-  public String bash(@PathVariable("containerId") String containerId, @RequestBody String command) throws InterruptedException {
+  @GetMapping("/{containerId}/log-stream")
+  public void logsStream(@PathVariable("containerId") String containerId, HttpServletResponse response) throws InterruptedException, IOException {
+    var instance = DockerBridgeUtils.getInstance();
+    var outputStream = response.getOutputStream();
 
-    var dockerClient = getInstance();
-
-    var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
-        .withCmd("bash", "-c", command)
-        .withAttachStdout(true)
-        .exec();
-
-    var outputStream = new ByteArrayOutputStream();
-    var outputStream2 = new ByteArrayOutputStream();
-
-    dockerClient.execStartCmd(execCreateCmdResponse.getId())
-        .exec(new ExecStartResultCallback(outputStream, outputStream2))
+    instance.logContainerCmd(containerId)
+        .withFollowStream(true)
+        .withStdOut(true)
+        .withStdErr(true)
+        .exec(new ExecStartResultCallback(outputStream, outputStream))
         .awaitCompletion();
-
-    return outputStream2.toString() + outputStream.toString();
   }
 
-  @PostMapping("/{containerId}/exec")
-  public String exec(@PathVariable("containerId") String containerId, @RequestBody DockerCommand command) throws InterruptedException, IOException {
-    var dockerClient = getInstance();
-
-    var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
-        .withCmd(command.startCommand.toArray(String[]::new))
-        .withAttachStdout(true)
-        .withAttachStderr(true)
-        .withTty(true)
-        .withAttachStdin(true)
-        .exec();
-
+  @PostMapping("/{containerId}/tty")
+  public String tty(@PathVariable("containerId") String containerId, @RequestBody List<String> commands) throws InterruptedException, IOException {
     try (var outputStream = new ByteArrayOutputStream()) {
-      var in = new PipedInputStream();
-      var out = new PipedOutputStream(in);
-
-      spawnInputThread(command, outputStream, in, out);
-
-      dockerClient.execStartCmd(execCreateCmdResponse.getId())
-          .withStdIn(in)
-          .withTty(true)
-          .exec(new ExecStartResultCallback(outputStream, outputStream))
-          .awaitCompletion(10, TimeUnit.SECONDS);
-
+      DockerBridgeUtils.createTty(containerId, commands, outputStream);
       return outputStream.toString();
     }
-
-  }
-
-  private void spawnInputThread(DockerCommand command, ByteArrayOutputStream outputStream, PipedInputStream in, PipedOutputStream out) {
-    new Thread(() -> {
-      try {
-        for (String x : command.inputCommands) {
-          if (x.equals("__")) {
-            Thread.sleep(1000);
-          } else {
-            out.write((x + "\n").getBytes(StandardCharsets.UTF_8));
-          }
-        }
-      } catch (IOException | InterruptedException e) {
-        e.printStackTrace();
-      } finally {
-        try {
-          in.close();
-          out.close();
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
-      }
-    }).start();
   }
 
   @GetMapping("/list")
   public List<Container> list() {
-    return getInstance()
+    return DockerBridgeUtils.getInstance()
         .listContainersCmd()
         .withShowAll(true)
         .exec();
@@ -108,7 +45,7 @@ public class DockerBridgeController {
 
   @PostMapping("/{containerId}/command")
   public String command(@PathVariable("containerId") String containerId, @RequestBody String command) {
-    var instance = getInstance();
+    var instance = DockerBridgeUtils.getInstance();
 
     switch (command) {
       case "stop" -> instance.stopContainerCmd(containerId)
@@ -125,19 +62,6 @@ public class DockerBridgeController {
           .exec();
     }
 
-    return getContainerState(containerId, instance);
-  }
-
-  private String getContainerState(String containerId, DockerClient instance) {
-    return instance.inspectContainerCmd(containerId).exec().getState().getStatus();
-  }
-
-  private DockerClient getInstance() {
-    var config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
-    var httpClient = new ApacheDockerHttpClient.Builder()
-        .dockerHost(config.getDockerHost())
-        .sslConfig(config.getSSLConfig())
-        .build();
-    return DockerClientImpl.getInstance(config, httpClient);
+    return DockerBridgeUtils.getContainerState(containerId, instance);
   }
 }
