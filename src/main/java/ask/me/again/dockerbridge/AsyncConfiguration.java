@@ -24,12 +24,9 @@ import java.util.concurrent.Callable;
 @EnableScheduling
 public class AsyncConfiguration implements AsyncConfigurer {
 
-    private final Logger log = LoggerFactory.getLogger(AsyncConfiguration.class);
-
     @Override
     @Bean (name = "taskExecutor")
     public AsyncTaskExecutor getAsyncExecutor() {
-        log.debug("Creating Async Task Executor");
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(5);
         executor.setMaxPoolSize(10);
@@ -60,7 +57,6 @@ public class AsyncConfiguration implements AsyncConfigurer {
         return new TimeoutCallableProcessingInterceptor() {
             @Override
             public <T> Object handleTimeout(NativeWebRequest request, Callable<T> task) throws Exception {
-                log.error("timeout!");
                 return super.handleTimeout(request, task);
             }
         };

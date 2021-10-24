@@ -1,22 +1,17 @@
 package ask.me.again.dockerbridge;
 
 import com.github.dockerjava.api.model.Container;
-import org.apache.commons.io.IOUtils;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import javax.servlet.http.HttpServletResponse;
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -28,6 +23,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DockerBridgeController {
 
   private final HashMap<String, OutputStreamContainer> streams = new HashMap<>();
+
+  public record OutputStreamContainer(OutputStream userWritable, AtomicBoolean shutdown) {
+  }
 
   @PostMapping("/{containerId}/session")
   public ResponseEntity<StreamingResponseBody> openSession(
@@ -55,15 +53,13 @@ public class DockerBridgeController {
         .contentType(MediaType.TEXT_EVENT_STREAM)
         .body(outputStream -> {
           while (!shutdown.get()) {
-            tobeFlushed.forEach(x -> {
-              try {
-                outputStream.write((x + "\n").getBytes(StandardCharsets.UTF_8));
-                outputStream.flush();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            });
-            tobeFlushed.clear();
+            var item = tobeFlushed.poll();
+            if (item != null) {
+              outputStream.write(item
+                  .replaceAll("\u001B\\[[;\\d]*m", "") //removing ansi
+                  .getBytes(StandardCharsets.UTF_8));
+              outputStream.flush();
+            }
           }
         });
   }
@@ -73,22 +69,8 @@ public class DockerBridgeController {
       @PathVariable("containerId") String containerId,
       @Nullable @RequestBody String command
   ) throws IOException {
-    streams.get(containerId).userWritable().write((command+"\n").getBytes(StandardCharsets.UTF_8));
+    streams.get(containerId).userWritable().write((command + "\n").getBytes(StandardCharsets.UTF_8));
   }
-
-//  @GetMapping("/{containerId}/log-stream")
-//  public void logsStream(@PathVariable("containerId") String containerId, HttpServletResponse response) throws InterruptedException, IOException {
-//    var instance = DockerBridgeUtils.getInstance();
-//    var outputStream = response.getOutputStream();
-//
-//    instance.logContainerCmd(containerId)
-//        .withFollowStream(true)
-//        .withStdOut(true)
-//        .withStdErr(true)
-//        .exec(new ExecStartResultCallback(outputStream, outputStream))
-//        .awaitCompletion();
-//  }
-//
 
   @GetMapping("/list")
   public List<Container> list() {

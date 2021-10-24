@@ -2,93 +2,18 @@
 
 This is the ultimate answer to "what should not be done with [Postman](https://www.postman.com/)?"
 
+The answer is simple: running custom Apps in the Postman Visualizer Tab
+
 This bridge allows us to enter docker commands via rest. 
-This itself doesnt sounds already good, but in combination
-with Postman, we can do some insane stuff.
+This itself doesnt sounds that bad good, but in combination
+with Postman and its JS Sandbox, we can do some insane stuff.
 
 This project uses [docker-java](https://github.com/docker-java/docker-java)
 and hosts a restapi via [spring.io](https://spring.io/)
 
 This repo has an [example collection](/DockerBridge.postman_collection.json) for you to import in postman
 
-## Sql
-
-I already implemented an [SqlBridge](https://github.com/AskMeAgain/SqlBridge) to be used in combination with postman
-to allow us to enter sql commands via rest. But we can do this with 
-the DockerBridge too, by "execing" into the mysql container
-and executing a shell command
-
-![alt text](SqlBridge.png)
-
-#### Note: We need to login in our DB (-u{{user}} -p{{password}})
-
-Just add the following code to your Test Script in Postman, to visualize the
-response correctly:
-
-<details>
-  <summary>Click here for the Test Script Code</summary>
-
-    var template = `
-    <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
-    <style>
-        i {color: black }
-        i:hover { color:grey; cursor: pointer; }
-        i:active { color:black }
-    </style>
-    <script>
-        function docker(containerId, command)
-        {   
-            var theUrl = 'http://localhost:8080/container/' + containerId + '/command';
-            var xmlHttp = new XMLHttpRequest();
-            xmlHttp.open( "POST", theUrl, false );
-            xmlHttp.send(encodeURIComponent(command));
-            var element = document.getElementById(containerId)
-            element.textContent = xmlHttp.responseText;
-        }
-    </script>
-    <table bgcolor="#FFFFFF">
-    <tr>
-        <th>Commands</th>
-        <th>Image</th>
-        <th>Id</th>
-        <th>Status</th>
-    </tr>
-        {{#each containers}}
-        <tr>
-            <td style="text-align:center">
-                <a onclick="docker('{{this.Id}}', 'start')"><i class="fas fa-play"></i></a>
-                <a onclick="docker('{{this.Id}}', 'stop')"><i class="fas fa-stop-circle"></i></a>
-                <a onclick="docker('{{this.Id}}', 'remove')"><i class="fas fa-trash"></i></a>
-                    <a onclick="docker('{{this.Id}}', 'restart')"><i class="fas fa-sync-alt"></i></a>
-            </td>
-            <td>{{this.Image}}</td>
-            <td>
-                <span style="display:inline-block;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: clip;
-                    max-width: 8ch;">
-                    {{this.Id}}
-                </span>
-            </td>    
-            <td>
-                <span id='{{this.Id}}'>{{this.State}}</span>
-            </td>
-        </tr>
-        {{/each}}
-    </table>
-    `;
-
-    var header = pm.response.json()[0];
-    var data = pm.response.json().slice(1);
-    
-    pm.visualizer.set(template, {
-        containers: pm.response.json()
-    });
-
-</details>
-
-## [Portainer](https://www.portainer.io/) (lol)
+## [Portainer](https://www.portainer.io/)
 
 Yes, since we have complete access to docker we can just run a (simple)
 portainer version inside Postman:
@@ -159,14 +84,16 @@ portainer version inside Postman:
 
 </details>
 
-## Stream logs
+## Complete Shell
 
-Normally Postman cannot handle Streams, but since we have a javascript environment
-we can handle this clientside. We can use this to stream docker logs
+If we can exec via rest, then it shouldnt be an issue to host your own shell.
+We use 3 Endpoints here: 
+* 1 Endpoint to download the code (use eval(responseBody)
+to load the data)
+* 1 Endpoint to open the session (exec process)
+* 1 Endpoint to write to the session
 
-## Complete shell
-
-If we can exec via rest, then it should be an issue to 
+![alt text](shell.gif)
 
 ## Installation
 
