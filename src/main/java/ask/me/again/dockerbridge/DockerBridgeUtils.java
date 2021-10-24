@@ -15,7 +15,9 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DockerBridgeUtils {
   static void spawnInputThread(List<String> commands, PipedInputStream in, PipedOutputStream out) {
@@ -51,7 +53,7 @@ public class DockerBridgeUtils {
     return DockerClientImpl.getInstance(config, httpClient);
   }
 
-  static void createTty(String containerId, String startCommand, PipedOutputStream logWritable, PipedInputStream stdin) throws InterruptedException {
+  static void createTty(String containerId, String startCommand, ConcurrentLinkedQueue<String> log, AtomicBoolean shutdown, PipedInputStream stdin) throws InterruptedException {
     var dockerClient = DockerBridgeUtils.getInstance();
     var tty = true;
     var execCreateCmdResponse = dockerClient.execCreateCmd(containerId)
@@ -67,24 +69,13 @@ public class DockerBridgeUtils {
         .withTty(tty)
         .exec(new ResultCallback.Adapter<>() {
           @Override
-          public void onNext(Frame frame)
-          {
-            try {
-              System.out.println(frame.toString());
-              logWritable.write(frame.getPayload());
-              logWritable.flush();
-            } catch (IOException e) {
-              e.printStackTrace();
-            }
+          public void onNext(Frame frame) {
+            log.add(new String(frame.getPayload()));
           }
 
           @Override
-          public void onComplete(){
-            try {
-              logWritable.close();
-            } catch (IOException e) {
-              e.printStackTrace();
-            }
+          public void onComplete() {
+            shutdown.set(true);
           }
         })
         .awaitStarted();
