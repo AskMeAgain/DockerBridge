@@ -3,7 +3,7 @@ var template = `
     #exec-button {
         height: 40px;
         border: 0px solid #dddddd;
-        border-top: 2px solid #cccccc;
+        border-top: 1px solid #ededed;
         width: 80px;
         min-width:80px;
         background-color: #93d5e3;
@@ -23,7 +23,7 @@ var template = `
         background-color: #dddddd;
         height: 30px;
         line-height: 30px;
-        padding-left: 20px;
+        padding-left: 14px;
         margin: 0px;
         cursor: pointer !important;
     }
@@ -34,7 +34,7 @@ var template = `
         background-color: white;
     } 
     .activated {
-        border-left: 10px solid black !important;
+        border-left: 4px solid orange !important;
     }
     .activated > .container-item {
         padding-left: 11px !important;
@@ -50,9 +50,9 @@ var template = `
         overflow-y: scroll;
     }
     .container-list:hover {
-        border-top: 1px solid black !important;
-        border-bottom: 1px solid black !important;
-        border-left: 10px solid black !important;
+        border-top: 1px solid orange !important;
+        border-bottom: 1px solid orange !important;
+        border-left: 4px solid orange !important;
         cursor: pointer !important;
     }
     input {
@@ -61,7 +61,7 @@ var template = `
         height: 40px !important;
         border: 0px solid black !important;
         border-radius: 0px !important;
-        border-top: 2px solid #cccccc !important;
+        border-top: 1px solid #ededed !important;
     }
     #process {
         min-width: 100px;
@@ -71,7 +71,6 @@ var template = `
     }
     #tool-window {
         height: 40px;
-        background-color: red;
     }
     #process:read-only, #inputfield:read-only {
         background-color: #dddddd;
@@ -80,7 +79,7 @@ var template = `
         cursor: default;
     }
     #process:read-only {
-        border-right: 2px solid #cccccc !important;
+        border-right: 1px solid #ededed !important;
     }
     #content {
         font-family: "DejaVu Sans Mono";
@@ -103,9 +102,17 @@ var template = `
         color: grey !important;
         cursor: default !important;
     }
+    #content-window {
+        display:flex; 
+        overflow: hidden; 
+        flex-direction: row; 
+        width:99%; 
+        height:99%;
+        border: 1px solid #ededed !important;
+    }
 </style>
 
-<div style="display:flex; overflow: hidden; flex-direction: row; width:100%; height:100%">
+<div id="content-window">
     <div style="display:flex;flex-direction:column; width:100%; height:100%;">
         <div style="display:flex; flex-grow: 1; overflow: hidden; ">
             <label id="content"></label>
@@ -222,7 +229,7 @@ function createSession(command){
     focusInputField();
 
     var label = document.getElementById("content");
-
+    label.innerHTML = 'connected to process</br>';
     initSession.onreadystatechange = function() {
         var newData = initSession.response.substr(initSession.seenBytes);
         var splitted = newData.split("\\n");
