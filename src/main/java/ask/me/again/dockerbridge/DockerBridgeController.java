@@ -56,8 +56,9 @@ public class DockerBridgeController {
             var item = tobeFlushed.poll();
             if (item != null) {
               outputStream.write(item
-                  .replaceAll("\u001B\\[[;\\d]*m", "") //removing ansi
-                  .getBytes(StandardCharsets.UTF_8));
+                  .replaceAll("\u001B\\[[;\\d]*m", "")
+                  .replaceAll("]0;", "")
+                  .getBytes());
               outputStream.flush();
             }
           }

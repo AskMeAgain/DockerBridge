@@ -1,47 +1,80 @@
 var template = `
 <style>
+    ::-webkit-scrollbar {
+        width: 15px;
+    }
+    ::-webkit-scrollbar-track {
+        border-left: 1px solid var(--border-color) !important;
+        border-right: 1px solid var(--border-color) !important;
+        background-color: white;
+    }
+    ::-webkit-scrollbar-thumb {
+        background-color: #c1c1c1;
+    }
+    :root {
+        --blue: #097bed;
+        --orange: #ff6c37;
+        --light-grey: #f9f9f9;
+        --dark-grey: #f2f2f2;
+        --border-color: #ededed;
+    }
     #exec-button {
         height: 40px;
-        border: 0px solid #dddddd;
-        border-top: 1px solid #ededed;
+        border: 0px;
         width: 80px;
-        min-width:80px;
-        background-color: #93d5e3;
+        min-width: 80px;
+        font-weight: 800;
+        background-color: var(--blue);
         text-align: center;
-        border-radius: 0px !important;
+        border-radius: 5px !important;
         line-height: 40px;
-        color: black;
-        padding-top: 0px;
+        color: white;
         cursor: pointer;
     }
     .container-list {
-        border: 1px solid #dddddd !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 5px;
         margin-bottom: 10px;
     }
     .container-item {
         text-align: left;
-        background-color: #dddddd;
+        color: black;
+        font-weight: 500;
+        background-color: var(--light-grey);
         height: 30px;
         line-height: 30px;
         padding-left: 14px;
         margin: 0px;
-        cursor: pointer !important;
+        cursor: pointer;
     }
-    .container-list:hover > .container-item {
-        padding-left: 11px !important;
+    .running > .container-item::before {
+        content: '● ';
+        font-size: 20px;
+        color: green;
+    }
+    .stopped > .container-item::before {
+        content: '● ';
+        font-size: 20px;
+        color: red;
+       
+    }
+    .stopped {
+        pointer-events: none;
+        cursor: default !important;
+    }
+    .container-item ~ .container-item::before {
+        content: '';
     }
     .container-item + .container-item {
-        background-color: white;
+        border-top: 2px solid var(--dark-grey) !important;
     } 
-    .activated {
-        border-left: 4px solid orange !important;
+    .activated > label {
+        box-shadow: inset 0px 3px 0px 0px var(--orange);
     }
-    .activated > .container-item {
-        padding-left: 11px !important;
+    .activated > label + label {
+        box-shadow: inset 0px 0px 0px 0px var(--orange);
     }
     #containerList {
-        border-left: 1px solid #dddddd !important;
-        padding-left: 10px;
         padding-right: 10px;
         padding-top: 10px;
         width: 300px;
@@ -49,19 +82,23 @@ var template = `
         overflow: hidden;
         overflow-y: scroll;
     }
-    .container-list:hover {
-        border-top: 1px solid orange !important;
-        border-bottom: 1px solid orange !important;
-        border-left: 4px solid orange !important;
-        cursor: pointer !important;
+    input:read-only {
+        background-color: var(--dark-grey) !important;
+        user-select: none;
+        font-weight: 100 !important;
+        color: #bbbbbb;
+        font-style: italic;
+        cursor: default;
     }
     input {
-        font-size: 15px;
+        font-size: 14px;
         font-family: "DejaVu Sans Mono";
         height: 40px !important;
-        border: 0px solid black !important;
-        border-radius: 0px !important;
-        border-top: 1px solid #ededed !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 4px;
+        background-color: var(--light-grey) !important;
+        margin-left: 10px;
+        margin-right: 10px;
     }
     #process {
         min-width: 100px;
@@ -70,31 +107,22 @@ var template = `
         width: 100%;
     }
     #tool-window {
-        height: 40px;
-    }
-    #process:read-only, #inputfield:read-only {
-        background-color: #dddddd;
-        user-select: none;
-        color: grey;
-        cursor: default;
-    }
-    #process:read-only {
-        border-right: 1px solid #ededed !important;
+        height: 50px;
+        padding-top: 10px;
+        line-height: 50px;
     }
     #content {
         font-family: "DejaVu Sans Mono";
-        font-weight: 500;
+        font-weight: 400;
+        font-size: 14px;
         width: 100%;
         display: flex;
         flex-direction: column-reverse;
         overflow-y: scroll;
         padding-left: 10px; 
-    }
-    .running {
-        border-right: 10px solid green !important;
-    }
-    .stopped {
-        border-right: 10px solid red !important;
+        margin-right: 10px;
+        margin-bottom: 0px;
+        border-bottom: 1px solid var(--dark-grey) !important;
     }
     .disabled {
         pointer-events: none;
@@ -110,11 +138,35 @@ var template = `
         height:99%;
         border: 1px solid #ededed !important;
     }
+    @media (max-width: 1300px) {
+        #content-window {
+            flex-direction: column-reverse !important;
+            width: 98vw;    
+            height: 99vh;
+            margin-right: 0px !important;
+            padding-right: 10px;
+            border: 0px !important;
+        }
+        #containerList {
+            height: 50%;
+            width: 100%;
+            padding: 0px;
+        }
+        .container-list {
+            margin-right: 10px;
+        }
+        .container-list {
+        }
+        #content {
+            margin-right: 0px;
+            border-top: 1px solid #ededed !important;
+        }
+    }
 </style>
 
 <div id="content-window">
-    <div style="display:flex;flex-direction:column; width:100%; height:100%;">
-        <div style="display:flex; flex-grow: 1; overflow: hidden; ">
+    <div id="console-window" style="display:flex;flex-direction:column; height: 100%; width:100%;">
+        <div style="display:flex; flex-grow: 1; overflow: hidden;" >
             <label id="content"></label>
         </div>
         <div id="tool-window" style="display:flex;">
@@ -138,7 +190,7 @@ const inputField = document.getElementById("inputfield");
 inputField.addEventListener("keyup", ({key}) => {
     if (key === "Enter") {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'http://localhost:8080/container/'+containerId.id+'/write', false);
+        xhr.open('POST', '{{url}}/container/'+containerId.id+'/write', false);
         var toBeSend = inputField.value.replaceAll('"','\\\\"');
         commandList.push(inputField.value);
         inputField.value = '';
@@ -190,10 +242,12 @@ processField.addEventListener('input', function (input) {
     setProcessFieldSize(processField);
 });
 
-function focusProcessField(){
+function focusProcessField(input){
     var processfield = document.getElementById("process")
     document.getElementById("process").removeAttribute("readonly");
     document.getElementById("exec-button").classList.remove("disabled");
+    processField.value = input;
+    setProcessFieldSize(processField);
     processfield.focus();
     processfield.select();
     var inputfield = document.getElementById("inputfield");
@@ -222,7 +276,7 @@ function createSession(command){
     var initSession = new XMLHttpRequest();
 
     containerId.session = initSession;
-    initSession.open('POST', 'http://localhost:8080/container/'+containerId.id+'/session', true);
+    initSession.open('POST', '{{url}}/container/'+containerId.id+'/session', true);
     initSession.seenBytes = 0;
     initSession.setRequestHeader('Content-type', 'application/json');
 
@@ -231,26 +285,30 @@ function createSession(command){
     var label = document.getElementById("content");
     label.innerHTML = 'connected to process</br>';
     initSession.onreadystatechange = function() {
-        var newData = initSession.response.substr(initSession.seenBytes);
-        var splitted = newData.split("\\n");
-        for(var i = 0; i < splitted.length - 1; i++){
-            if(splitted[i] !== ""){
-                label.innerHTML += splitted[i] + "<br />";
+        if(initSession.readyState == 3) {
+            var newData = initSession.response.substr(initSession.seenBytes);
+            var splitted = newData.split("\\n");
+            for(var i = 0; i < splitted.length - 1; i++){
+                if(splitted[i] !== ""){
+                    label.innerHTML += splitted[i] + "<br />";
+                }
             }
+            if('' !== splitted[splitted.length -1]){
+                processField.value = splitted[splitted.length -1];
+            }
+            setProcessFieldSize(processField);
+            initSession.seenBytes = initSession.responseText.length;
         }
-        processField.value = splitted[splitted.length -1];
-        setProcessFieldSize(processField);
-        initSession.seenBytes = initSession.responseText.length;
     };
 
     initSession.addEventListener("error", function(e) {
         containerId.session = undefined;
-        focusProcessField();
+        focusProcessField('');
     });
 
     initSession.addEventListener("load", function(e) {
         containerId.session = undefined;
-        focusProcessField();
+        focusProcessField('');
     });
     
     initSession.send(command);
@@ -262,7 +320,7 @@ function setProcessFieldSize(processField){
 
 function loadContainerList(){
     var containerListRequest = new XMLHttpRequest();
-    containerListRequest.open('GET', 'http://localhost:8080/container/list', true);
+    containerListRequest.open('GET', '{{url}}/container/list', true);
 
     containerListRequest.onload = function() {
         var json = JSON.parse(containerListRequest.response);
@@ -304,7 +362,7 @@ function loadContainerList(){
                         }
                     }
                     
-                    focusProcessField();
+                    focusProcessField('');
                     var label = document.getElementById("content");
                     label.innerHTML = '';
 
@@ -329,7 +387,7 @@ function loadContainerList(){
 }
 
 document.onload = new function () {
-    focusProcessField();
+    focusProcessField('bash');
     loadContainerList();
     setProcessFieldSize(processField);
 }
@@ -337,7 +395,6 @@ document.onload = new function () {
 </script>
 `;
 
-
 pm.visualizer.set(template, {
-
+    url: pm.variables.get('shell-url')
 });

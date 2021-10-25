@@ -50,7 +50,7 @@ public class DockerBridgeUtils {
         .exec(new ResultCallback.Adapter<>() {
           @Override
           public void onNext(Frame frame) {
-            log.add(new String(frame.getPayload()));
+            log.add(new String(frame.getPayload(), StandardCharsets.UTF_8));
           }
 
           @Override
